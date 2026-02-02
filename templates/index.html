@@ -3,10 +3,23 @@
 <div class="container">
     <h1>Como você avalia nosso serviço?</h1>
     <div class="buttons">
-        <button class="satisfacao" data-grau="Muito satisfeito">😀 Muito satisfeito</button>
-        <button class="satisfacao" data-grau="Satisfeito">🙂 Satisfeito</button>
-        <button class="satisfacao" data-grau="Insatisfeito">😞 Insatisfeito</button>
+        <button class="satisfacao" data-grau="Muito satisfeito"><span class="emoji">😀</span><span class="label">Muito satisfeito</span></button>
+        <button class="satisfacao" data-grau="Satisfeito"><span class="emoji">🙂</span><span class="label">Satisfeito</span></button>
+        <button class="satisfacao" data-grau="Insatisfeito"><span class="emoji">😞</span><span class="label">Insatisfeito</span></button>
     </div>
     <div id="feedback" class="hidden"></div>
+</div>
+<!-- Modal de login admin -->
+<div id="adminModal" class="modal hidden">
+    <div class="modal-content">
+        <span id="closeModal" class="close">&times;</span>
+        <h2>Login Administrativo</h2>
+        <label>Usuário</label>
+        <input id="adminUser" type="text" placeholder="admin_001">
+        <label>Senha</label>
+        <input id="adminPass" type="password" placeholder="senha">
+        <button id="adminLoginBtn">Entrar</button>
+        <div id="adminMsg"></div>
+    </div>
 </div>
 {% endblock %}

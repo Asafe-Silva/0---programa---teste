@@ -1,13 +1,30 @@
 body {
     font-family: Arial, sans-serif;
     text-align: center;
-    background-color: #f4f4f4;
     margin: 0;
     padding: 0;
+    transition: background-color 0.2s, color 0.2s;
+    background: var(--bg);
+    color: var(--fg);
+}
+
+/* Tema escuro por padrão */
+:root[data-theme="dark"] {
+    --bg: #000000;
+    --fg: #ffffff;
+    --accent: #ff4d4d; /* vermelho */
+}
+
+:root[data-theme="light"] {
+    --bg: #ffffff;
+    --fg: #000000;
+    --accent: #c62828;
 }
 
 .container {
     padding: 20px;
+    background: transparent;
+    color: var(--fg);
 }
 
 .buttons {
@@ -15,15 +32,120 @@ body {
 }
 
 button.satisfacao {
-    font-size: 2em;
-    padding: 20px 40px;
-    margin: 10px;
+    font-size: 2.6em;
+    padding: 28px 56px;
+    margin: 14px;
     cursor: pointer;
+    border: 2px solid var(--accent);
+    background: var(--bg);
+    color: var(--fg);
+    border-radius: 12px;
 }
+
+button.satisfacao:active {
+    transform: scale(0.98);
+}
+
+/* Mais interatividade: ripple e destaque */
+button.satisfacao {
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.2s;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.35);
+}
+button.satisfacao:hover {
+    transform: translateY(-6px) scale(1.02);
+}
+.ripple {
+    position: absolute;
+    border-radius: 50%;
+    transform: scale(0);
+    animation: ripple 600ms linear;
+    pointer-events: none;
+    opacity: 0.6;
+}
+@keyframes ripple {
+    to { transform: scale(4); opacity: 0; }
+}
+
+/* check transient */
+.btn-check {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(0.6);
+    font-size: 1.2em;
+    opacity: 0;
+    color: var(--accent);
+    transition: opacity 300ms, transform 300ms;
+}
+.btn-check.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+/* Animações específicas por botão */
+@keyframes muitoBounce {
+    0% { transform: translate(0,0) scale(1); }
+    20% { transform: translate(-20vw,-10vh) scale(1.4); }
+    40% { transform: translate(15vw,-18vh) scale(1.3); }
+    60% { transform: translate(-10vw,12vh) scale(1.35); }
+    80% { transform: translate(12vw,8vh) scale(1.2); }
+ 100% { transform: translate(0,0) scale(1); }
+}
+.bounce-around {
+    animation: muitoBounce 2200ms cubic-bezier(.25,.8,.25,1) forwards;
+}
+
+@keyframes satisfeitoPop {
+    0% { transform: scale(1) translateY(0); }
+    25% { transform: scale(1.6) translateY(-18px) rotate(-6deg); }
+    60% { transform: scale(1.18) translateY(6px) rotate(6deg); }
+ 100% { transform: scale(1) translateY(0) rotate(0); }
+}
+.satisfeito-pop {
+    animation: satisfeitoPop 1800ms ease forwards;
+}
+
+@keyframes insatisfeitoRun {
+    0% { transform: translate(0,0) scale(1); }
+    35% { transform: translate(-45vw,-40vh) scale(1.12); }
+    60% { transform: translate(-48vw,-42vh) scale(1.12); }
+ 100% { transform: translate(0,0) scale(1); }
+}
+.insatisfeito-run {
+    animation: insatisfeitoRun 2600ms ease-in-out forwards;
+}
+
+/* Lagrimas */
+.tear {
+    position: absolute;
+    width: 8px;
+    height: 12px;
+    border-radius: 50%;
+    background: #6ec6ff;
+    opacity: 0.9;
+    transform: translateY(0);
+    animation: tearFall 1100ms linear forwards;
+}
+@keyframes tearFall {
+    0% { transform: translateY(0); opacity: 0.95; }
+    80% { transform: translateY(60vh) rotate(20deg); opacity: 0.6; }
+ 100% { transform: translateY(90vh) rotate(30deg); opacity: 0; }
+}
+
+/* pequenos ajustes visuais para textos/emoji */
+.satisfacao .emoji {
+    display: inline-block;
+    margin-right: 8px;
+    transition: transform 250ms;
+}
+
+.hidden { display: none; }
 
 #feedback {
     font-size: 1.2em;
-    color: green;
+    color: var(--accent);
     margin-top: 20px;
 }
 
@@ -35,13 +157,67 @@ table {
     width: 90%;
     margin: 20px auto;
     border-collapse: collapse;
+    color: var(--fg);
 }
 
 th, td {
-    border: 1px solid #999;
+    border: 1px solid #555;
     padding: 10px;
 }
 
 th {
-    background-color: #ddd;
+    background-color: rgba(255,255,255,0.04);
 }
+
+/* Topbar */
+.topbar {
+    position: fixed;
+    right: 12px;
+    top: 12px;
+    display: flex;
+    gap: 8px;
+    z-index: 999;
+}
+.topbtn {
+    background: var(--bg);
+    color: var(--fg);
+    border: 1px solid var(--fg);
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+/* Modal */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.6);
+}
+.modal-content {
+    background: var(--bg);
+    color: var(--fg);
+    padding: 20px;
+    border-radius: 8px;
+    width: 320px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+}
+.close {
+    float: right;
+    cursor: pointer;
+}
+.modal input {
+    width: 100%;
+    padding: 8px;
+    margin: 6px 0 10px;
+    border-radius: 4px;
+    border: 1px solid #888;
+    background: transparent;
+    color: var(--fg);
+}
+.hidden { display: none; }

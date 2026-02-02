@@ -8,6 +8,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+    <header class="topbar">
+        <button id="adminBtn" class="topbtn">Admin</button>
+        <button id="themeToggle" class="topbtn" aria-label="Alternar tema">🌙</button>
+    </header>
     {% block content %}{% endblock %}
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>

@@ -1,10 +1,14 @@
-from flask import Flask, render_template, request, jsonify, Response
+from flask import Flask, render_template, request, jsonify, Response, session, redirect, url_for
 import sqlite3
 from datetime import datetime
+import os
 
 app = Flask(__name__)
 
 DATABASE = 'database.db'
+
+# secret key para sessões (em produção usar var de ambiente)
+app.secret_key = os.getenv('FLASK_SECRET_KEY', 'troque_esta_chave_para_producao')
 
 # --- Função para criar/conectar banco ---
 def get_db_connection():
@@ -23,6 +27,28 @@ def criar_tabela():
             dia_semana TEXT NOT NULL
         )
     ''')
+    # tabela de administradores
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS admins (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            senha TEXT NOT NULL
+        )
+    ''')
+    # inserir administradores predefinidos (se não existirem)
+    admins_pre = [
+        ('admin_001', '1234'),
+        ('admin_002', '2231'),
+        ('admin_003', '4321'),
+        ('admin_004', '3124'),
+        ('admin_005', '3241'),
+        ('admin_000', '0000')
+    ]
+    for u, p in admins_pre:
+        try:
+            conn.execute('INSERT OR IGNORE INTO admins (username, senha) VALUES (?, ?)', (u, p))
+        except Exception:
+            pass
     conn.commit()
     conn.close()
 
@@ -39,7 +65,8 @@ def registrar():
     grau = data.get('grau')
 
     agora = datetime.now()
-    data_str = agora.strftime('%Y-%m-%d')
+    # formato solicitado: dd/mm/aa (dia/mês/ano com dois dígitos)
+    data_str = agora.strftime('%d/%m/%y')
     hora_str = agora.strftime('%H:%M:%S')
     dia_semana = agora.strftime('%A')
 
@@ -54,16 +81,12 @@ def registrar():
     return jsonify({'mensagem': 'Obrigado pelo seu feedback!'})
 
 
-# --- Área Administrativa ---
-ADMIN_URL = '/admin_001'
-ADMIN_PASSWORD = '1234'  # opcional
-
-@app.route(f'{ADMIN_URL}')
+# --- Área Administrativa (agora protegida por sessão) ---
+@app.route('/admin')
 def admin():
-    # opcional: senha simples
-    senha = request.args.get('senha')
-    if senha != ADMIN_PASSWORD:
-        return "Acesso negado. Coloque ?senha=1234 na URL.", 401
+    # requer sessão de admin
+    if 'admin_user' not in session:
+        return redirect(url_for('index'))
 
     conn = get_db_connection()
     registros = conn.execute('SELECT * FROM feedbacks ORDER BY data DESC, hora DESC').fetchall()
@@ -80,7 +103,34 @@ def admin():
                            total_muito=total_muito,
                            total_satisfeito=total_satisfeito,
                            total_insatisfeito=total_insatisfeito,
-                           total=total)
+                           total=total,
+                           admin_user=session.get('admin_user'))
+
+
+# rota de login para admins (usada pelo modal)
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.get_json() or {}
+    username = data.get('username')
+    senha = data.get('senha')
+    if not username or not senha:
+        return jsonify({'success': False, 'mensagem': 'Usuário ou senha ausente.'}), 400
+
+    conn = get_db_connection()
+    row = conn.execute('SELECT * FROM admins WHERE username = ? AND senha = ?', (username, senha)).fetchone()
+    conn.close()
+
+    if row:
+        session['admin_user'] = username
+        return jsonify({'success': True, 'mensagem': 'Login realizado.'})
+    else:
+        return jsonify({'success': False, 'mensagem': 'Usuário ou senha inválidos.'}), 401
+
+
+@app.route('/logout')
+def logout():
+    session.pop('admin_user', None)
+    return redirect(url_for('index'))
 
 
 # --- Exportação ---
