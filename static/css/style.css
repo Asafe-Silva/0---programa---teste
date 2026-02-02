@@ -1,0 +1,47 @@
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    padding: 20px;
+}
+
+.buttons {
+    margin: 20px 0;
+}
+
+button.satisfacao {
+    font-size: 2em;
+    padding: 20px 40px;
+    margin: 10px;
+    cursor: pointer;
+}
+
+#feedback {
+    font-size: 1.2em;
+    color: green;
+    margin-top: 20px;
+}
+
+.hidden {
+    display: none;
+}
+
+table {
+    width: 90%;
+    margin: 20px auto;
+    border-collapse: collapse;
+}
+
+th, td {
+    border: 1px solid #999;
+    padding: 10px;
+}
+
+th {
+    background-color: #ddd;
+}

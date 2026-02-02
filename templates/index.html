@@ -1,0 +1,12 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container">
+    <h1>Como você avalia nosso serviço?</h1>
+    <div class="buttons">
+        <button class="satisfacao" data-grau="Muito satisfeito">😀 Muito satisfeito</button>
+        <button class="satisfacao" data-grau="Satisfeito">🙂 Satisfeito</button>
+        <button class="satisfacao" data-grau="Insatisfeito">😞 Insatisfeito</button>
+    </div>
+    <div id="feedback" class="hidden"></div>
+</div>
+{% endblock %}

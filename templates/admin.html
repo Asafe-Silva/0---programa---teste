@@ -1,0 +1,52 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container">
+    <h1>Administração - Feedbacks</h1>
+
+    <h2>Estatísticas</h2>
+    <p>Muito satisfeito: {{ total_muito }} ({{ (total_muito/total*100)|round(2) }}%)</p>
+    <p>Satisfeito: {{ total_satisfeito }} ({{ (total_satisfeito/total*100)|round(2) }}%)</p>
+    <p>Insatisfeito: {{ total_insatisfeito }} ({{ (total_insatisfeito/total*100)|round(2) }}%)</p>
+
+    <canvas id="grafico" width="400" height="200"></canvas>
+
+    <h2>Histórico</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th><th>Grau</th><th>Data</th><th>Hora</th><th>Dia da Semana</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for reg in registros %}
+            <tr>
+                <td>{{ reg.id }}</td>
+                <td>{{ reg.grau }}</td>
+                <td>{{ reg.data }}</td>
+                <td>{{ reg.hora }}</td>
+                <td>{{ reg.dia_semana }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="/exportar/csv">Exportar CSV</a> |
+    <a href="/exportar/txt">Exportar TXT</a>
+</div>
+
+<script>
+const ctx = document.getElementById('grafico').getContext('2d');
+const grafico = new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: ['Muito satisfeito', 'Satisfeito', 'Insatisfeito'],
+        datasets: [{
+            label: 'Feedbacks',
+            data: [{{ total_muito }}, {{ total_satisfeito }}, {{ total_insatisfeito }}],
+            backgroundColor: ['#4CAF50', '#FFC107', '#F44336']
+        }]
+    },
+    options: { responsive: true }
+});
+</script>
+{% endblock %}
