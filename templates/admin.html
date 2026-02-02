@@ -38,6 +38,12 @@
     <a href="/exportar/txt">Exportar TXT</a>
 </div>
 
+<!-- botões flutuantes no canto inferior direito (admin) -->
+<div class="admin-floating">
+    <button id="scrollTopBtn" class="float-btn" title="Ir para o início">⬆️</button>
+    <button id="scrollBottomBtn" class="float-btn" title="Ir para o fim">⬇️</button>
+</div>
+
 <script>
 const ctx = document.getElementById('grafico').getContext('2d');
 const grafico = new Chart(ctx, {
@@ -53,4 +59,16 @@ const grafico = new Chart(ctx, {
     options: { responsive: true }
 });
 </script>
+<script>
+// handlers para botões flutuantes
+document.addEventListener('DOMContentLoaded', () => {
+    const up = document.getElementById('scrollTopBtn');
+    const down = document.getElementById('scrollBottomBtn');
+    if (up) up.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+    if (down) down.addEventListener('click', () => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }));
+});
+</script>
+{% endblock %}
+{% block top_buttons %}
+    <a href="/" id="inicioBtn" class="topbtn">Início</a>
 {% endblock %}

@@ -65,10 +65,13 @@ def registrar():
     grau = data.get('grau')
 
     agora = datetime.now()
-    # formato solicitado: dd/mm/aa (dia/mês/ano com dois dígitos)
-    data_str = agora.strftime('%d/%m/%y')
+    # formato solicitado: dd/mm/aaaa (dia/mês/ano com quatro dígitos)
+    data_str = agora.strftime('%d/%m/%Y')
     hora_str = agora.strftime('%H:%M:%S')
-    dia_semana = agora.strftime('%A')
+    # dia da semana em português
+    dias_pt = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo']
+    # weekday(): 0 = Monday
+    dia_semana = dias_pt[agora.weekday()]
 
     conn = get_db_connection()
     conn.execute(
@@ -141,9 +144,14 @@ def exportar(formato):
     conn.close()
 
     if formato == 'csv':
-        output = "id,grau,data,hora,dia_semana\n"
+        # usar csv module para garantir colunas separadas corretamente e escape
+        import io, csv
+        sio = io.StringIO()
+        writer = csv.writer(sio)
+        writer.writerow(['id', 'grau', 'data', 'hora', 'dia_semana'])
         for row in dados:
-            output += f"{row['id']},{row['grau']},{row['data']},{row['hora']},{row['dia_semana']}\n"
+            writer.writerow([row['id'], row['grau'], row['data'], row['hora'], row['dia_semana']])
+        output = sio.getvalue()
         return Response(output, mimetype="text/csv",
                         headers={"Content-Disposition": "attachment;filename=feedbacks.csv"})
     elif formato == 'txt':

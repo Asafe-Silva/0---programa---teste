@@ -187,6 +187,28 @@ th {
     cursor: pointer;
 }
 
+/* Botões flutuantes admin (inferior direito) */
+.admin-floating {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 1200;
+}
+.float-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    border: 1px solid var(--fg);
+    background: var(--bg);
+    color: var(--fg);
+    cursor: pointer;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+}
+.float-btn:active { transform: translateY(2px); }
+
 /* Modal */
 .modal {
     position: fixed;

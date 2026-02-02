@@ -9,7 +9,7 @@
 </head>
 <body>
     <header class="topbar">
-        <button id="adminBtn" class="topbtn">Admin</button>
+        {% block top_buttons %}{% endblock %}
         <button id="themeToggle" class="topbtn" aria-label="Alternar tema">🌙</button>
     </header>
     {% block content %}{% endblock %}

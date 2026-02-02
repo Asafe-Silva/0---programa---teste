@@ -57,30 +57,42 @@ document.querySelectorAll('.satisfacao').forEach(btn => {
 function animateMuito(btn) {
     return new Promise(resolve => {
         const rect = btn.getBoundingClientRect();
-        const orig = { left: btn.style.left, top: btn.style.top, position: btn.style.position, zIndex: btn.style.zIndex, width: btn.style.width, height: btn.style.height };
-        // fixar no lugar para animar com transform
-        btn.style.position = 'fixed';
-        btn.style.left = rect.left + 'px';
-        btn.style.top = rect.top + 'px';
-        btn.style.width = rect.width + 'px';
-        btn.style.height = rect.height + 'px';
-        btn.style.margin = '0';
-        btn.style.zIndex = 9999;
-        btn.classList.add('bounce-around');
+        // criar um clone para animar e esconder o original (mantém layout)
+        const clone = btn.cloneNode(true);
+        clone.style.position = 'fixed';
+        clone.style.left = rect.left + 'px';
+        clone.style.top = rect.top + 'px';
+        clone.style.width = rect.width + 'px';
+        clone.style.height = rect.height + 'px';
+        clone.style.margin = '0';
+        clone.style.zIndex = 9999;
+        clone.style.pointerEvents = 'none';
+        document.body.appendChild(clone);
+        // esconder original sem colapsar layout
+        const oldVis = btn.style.visibility;
+        btn.style.visibility = 'hidden';
 
-        // duração da animação em CSS: 2200ms
+        const margin = 12;
+        const minX = margin;
+        const maxX = Math.max(margin, window.innerWidth - rect.width - margin);
+        const minY = margin;
+        const maxY = Math.max(margin, window.innerHeight - rect.height - margin);
+
+        const points = [
+            { x: rect.left, y: rect.top, s: 1 },
+            { x: Math.random() * (maxX - minX) + minX, y: Math.random() * (maxY - minY) + minY, s: 1.4 },
+            { x: Math.random() * (maxX - minX) + minX, y: Math.random() * (maxY - minY) + minY, s: 1.25 },
+            { x: rect.left, y: rect.top, s: 1 }
+        ];
+
+        const keyframes = points.map(p => ({ transform: `translate(${Math.round(p.x - rect.left)}px, ${Math.round(p.y - rect.top)}px) scale(${p.s})` }));
         const dur = 2200;
-        setTimeout(() => {
-            btn.classList.remove('bounce-around');
-            // restaurar estilos
-            btn.style.position = orig.position || '';
-            btn.style.left = orig.left || '';
-            btn.style.top = orig.top || '';
-            btn.style.width = orig.width || '';
-            btn.style.height = orig.height || '';
-            btn.style.zIndex = orig.zIndex || '';
+        const anim = clone.animate(keyframes, { duration: dur, easing: 'cubic-bezier(.25,.8,.25,1)', fill: 'forwards' });
+        anim.onfinish = () => {
+            clone.remove();
+            btn.style.visibility = oldVis || '';
             resolve(dur);
-        }, dur + 30);
+        };
     });
 }
 
@@ -88,32 +100,38 @@ function animateMuito(btn) {
 function animateSatisfeito(btn) {
     return new Promise(resolve => {
         const rect = btn.getBoundingClientRect();
-        const orig = { left: btn.style.left, top: btn.style.top, position: btn.style.position, zIndex: btn.style.zIndex, width: btn.style.width, height: btn.style.height, inner: btn.innerHTML };
-        btn.style.position = 'fixed';
-        btn.style.left = rect.left + 'px';
-        btn.style.top = rect.top + 'px';
-        btn.style.width = rect.width + 'px';
-        btn.style.height = rect.height + 'px';
-        btn.style.margin = '0';
-        btn.style.zIndex = 9999;
-        // trocar emoji para sorriso maior durante animação
-        const emoji = btn.querySelector('.emoji');
+        const clone = btn.cloneNode(true);
+        clone.style.position = 'fixed';
+        clone.style.left = rect.left + 'px';
+        clone.style.top = rect.top + 'px';
+        clone.style.width = rect.width + 'px';
+        clone.style.height = rect.height + 'px';
+        clone.style.margin = '0';
+        clone.style.zIndex = 9999;
+        clone.style.pointerEvents = 'none';
+        document.body.appendChild(clone);
+        const oldVis = btn.style.visibility;
+        btn.style.visibility = 'hidden';
+
+        // alterar emoji no clone
+        const emoji = clone.querySelector('.emoji');
         const oldEmoji = emoji ? emoji.textContent : '';
         if (emoji) emoji.textContent = '😄';
-        btn.classList.add('satisfeito-pop');
 
+        clone.classList.add('satisfeito-pop');
         const dur = 1800;
-        setTimeout(() => {
-            btn.classList.remove('satisfeito-pop');
-            if (emoji) emoji.textContent = oldEmoji;
-            btn.style.position = orig.position || '';
-            btn.style.left = orig.left || '';
-            btn.style.top = orig.top || '';
-            btn.style.width = orig.width || '';
-            btn.style.height = orig.height || '';
-            btn.style.zIndex = orig.zIndex || '';
+        const anim = clone.animate([
+            { transform: 'scale(1) translateY(0) rotate(0deg)' },
+            { transform: 'scale(1.6) translateY(-18px) rotate(-6deg)' },
+            { transform: 'scale(1.18) translateY(6px) rotate(6deg)' },
+            { transform: 'scale(1) translateY(0) rotate(0deg)' }
+        ], { duration: dur, easing: 'ease', fill: 'forwards' });
+
+        anim.onfinish = () => {
+            clone.remove();
+            btn.style.visibility = oldVis || '';
             resolve(dur);
-        }, dur + 30);
+        };
     });
 }
 
@@ -121,20 +139,38 @@ function animateSatisfeito(btn) {
 function animateInsatisfeito(btn) {
     return new Promise(resolve => {
         const rect = btn.getBoundingClientRect();
-        const orig = { left: btn.style.left, top: btn.style.top, position: btn.style.position, zIndex: btn.style.zIndex, width: btn.style.width, height: btn.style.height };
-        btn.style.position = 'fixed';
-        btn.style.left = rect.left + 'px';
-        btn.style.top = rect.top + 'px';
-        btn.style.width = rect.width + 'px';
-        btn.style.height = rect.height + 'px';
-        btn.style.margin = '0';
-        btn.style.zIndex = 9999;
-        btn.classList.add('insatisfeito-run');
+        const clone = btn.cloneNode(true);
+        clone.style.position = 'fixed';
+        clone.style.left = rect.left + 'px';
+        clone.style.top = rect.top + 'px';
+        clone.style.width = rect.width + 'px';
+        clone.style.height = rect.height + 'px';
+        clone.style.margin = '0';
+        clone.style.zIndex = 9999;
+        clone.style.pointerEvents = 'none';
+        document.body.appendChild(clone);
+        const oldVis = btn.style.visibility;
+        btn.style.visibility = 'hidden';
 
-        // criar lágrimas (2) a partir da posição do botão
+        const margin = 12;
+        const targetX = margin; // canto esquerdo
+        const targetY = Math.max(margin, window.innerHeight - rect.height - margin);
+
+        // animar clone usando transform para não modificar layout
+        const deltaX = targetX - rect.left;
+        const deltaY = targetY - rect.top;
+        const dur = 2600;
+        const anim = clone.animate([
+            { transform: 'translate(0px,0px) scale(1)' },
+            { transform: `translate(${deltaX}px, ${deltaY}px) scale(1.12)` },
+            { transform: 'translate(0px,0px) scale(1)' }
+        ], { duration: dur, easing: 'ease-in-out', fill: 'forwards' });
+
+        // criar lágrimas e animá-las a partir do clone's coordinates
         const eyeLeft = rect.left + rect.width * 0.22;
-        const eyeRight = rect.left + rect.width * 0.5;
+        const eyeRight = rect.left + rect.width * 0.6;
         const eyeTop = rect.top + rect.height * 0.25;
+
         const tear1 = document.createElement('div');
         const tear2 = document.createElement('div');
         tear1.className = 'tear';
@@ -146,20 +182,26 @@ function animateInsatisfeito(btn) {
         tear2.style.left = (eyeRight) + 'px';
         tear2.style.top = (eyeTop + 6) + 'px';
 
-        const dur = 2600;
-        // remover lágrimas e restaurar depois
-        setTimeout(() => {
-            tear1.remove();
-            tear2.remove();
-            btn.classList.remove('insatisfeito-run');
-            btn.style.position = orig.position || '';
-            btn.style.left = orig.left || '';
-            btn.style.top = orig.top || '';
-            btn.style.width = orig.width || '';
-            btn.style.height = orig.height || '';
-            btn.style.zIndex = orig.zIndex || '';
+        const endY1 = Math.max(20, window.innerHeight - (eyeTop) - 10);
+        const endY2 = Math.max(20, window.innerHeight - (eyeTop + 6) - 10);
+
+        tear1.animate([
+            { transform: 'translateY(0px) rotate(0deg)', opacity: 0.95 },
+            { transform: `translateY(${endY1}px) rotate(18deg)`, opacity: 0.2 }
+        ], { duration: 1100, easing: 'linear', fill: 'forwards' });
+
+        tear2.animate([
+            { transform: 'translateY(0px) rotate(0deg)', opacity: 0.95 },
+            { transform: `translateY(${endY2}px) rotate(22deg)`, opacity: 0.2 }
+        ], { duration: 1200, easing: 'linear', fill: 'forwards' });
+
+        anim.onfinish = () => {
+            try { tear1.remove(); } catch (e) {}
+            try { tear2.remove(); } catch (e) {}
+            clone.remove();
+            btn.style.visibility = oldVis || '';
             resolve(dur);
-        }, dur + 50);
+        };
     });
 }
 
@@ -194,38 +236,54 @@ themeToggle.addEventListener('click', () => {
     applyTheme(cur === 'dark' ? 'light' : 'dark');
 });
 
-// Admin modal logic
+// Admin modal logic (somente se existir o botão/modal na página)
 const adminBtn = document.getElementById('adminBtn');
 const adminModal = document.getElementById('adminModal');
 const closeModal = document.getElementById('closeModal');
 const adminLoginBtn = document.getElementById('adminLoginBtn');
 
-adminBtn.addEventListener('click', () => {
-    adminModal.classList.remove('hidden');
-});
-closeModal.addEventListener('click', () => {
-    adminModal.classList.add('hidden');
-});
-
-adminLoginBtn.addEventListener('click', async () => {
-    const username = document.getElementById('adminUser').value.trim();
-    const senha = document.getElementById('adminPass').value.trim();
-    const msg = document.getElementById('adminMsg');
-    msg.textContent = '';
-    try {
-        const res = await fetch('/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, senha })
-        });
-        const data = await res.json();
-        if (res.ok && data.success) {
-            // redireciona para painel admin
-            window.location.href = '/admin';
-        } else {
-            msg.textContent = data.mensagem || 'Erro no login';
+if (adminBtn && adminModal) {
+    adminBtn.addEventListener('click', () => {
+        adminModal.classList.remove('hidden');
+    });
+}
+if (closeModal && adminModal) {
+    closeModal.addEventListener('click', () => {
+        adminModal.classList.add('hidden');
+    });
+}
+if (adminLoginBtn) {
+    adminLoginBtn.addEventListener('click', async () => {
+        const usernameEl = document.getElementById('adminUser');
+        const senhaEl = document.getElementById('adminPass');
+        const msg = document.getElementById('adminMsg');
+        if (!usernameEl || !senhaEl || !msg) return;
+        const username = usernameEl.value.trim();
+        const senha = senhaEl.value.trim();
+        msg.textContent = '';
+        try {
+            const res = await fetch('/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, senha })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                // redireciona para painel admin
+                window.location.href = '/admin';
+            } else {
+                msg.textContent = data.mensagem || 'Erro no login';
+            }
+        } catch (e) {
+            msg.textContent = 'Erro ao conectar ao servidor.';
         }
-    } catch (e) {
-        msg.textContent = 'Erro ao conectar ao servidor.';
-    }
-});
+    });
+}
+
+// botão inicio no topo (já presente no layout)
+const inicioBtn = document.getElementById('inicioBtn');
+if (inicioBtn) {
+    inicioBtn.addEventListener('click', (e) => {
+        // navega para a raiz
+    });
+}
