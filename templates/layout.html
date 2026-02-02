@@ -9,8 +9,8 @@
 </head>
 <body>
     <header class="topbar">
-        {% block top_buttons %}{% endblock %}
         <button id="themeToggle" class="topbtn" aria-label="Alternar tema">🌙</button>
+        <div class="top-buttons-wrapper">{% block top_buttons %}{% endblock %}</div>
     </header>
     {% block content %}{% endblock %}
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>

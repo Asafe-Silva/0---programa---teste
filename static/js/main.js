@@ -13,9 +13,9 @@ document.querySelectorAll('.satisfacao').forEach(btn => {
 
         // iniciar animação apropriada (retorna Promise que resolve quando a animação termina)
         let animPromise;
-        if (grau === 'Muito satisfeito') animPromise = animateMuito(btn);
-        else if (grau === 'Satisfeito') animPromise = animateSatisfeito(btn);
-        else animPromise = animateInsatisfeito(btn);
+        if (grau === 'Muito satisfeito') animPromise = animateMuitoSimple(btn);
+        else if (grau === 'Satisfeito') animPromise = animateSatisfeitoSimple(btn);
+        else animPromise = animateInsatisfeitoSimple(btn);
 
         // enviar registro em paralelo
         let fetchMsg = null;
@@ -202,6 +202,110 @@ function animateInsatisfeito(btn) {
             btn.style.visibility = oldVis || '';
             resolve(dur);
         };
+    });
+}
+
+// Animações simplificadas solicitadas
+function animateMuitoSimple(btn) {
+    return new Promise(resolve => {
+        const rect = btn.getBoundingClientRect();
+        const clone = btn.cloneNode(true);
+        clone.style.position = 'fixed';
+        clone.style.left = rect.left + 'px';
+        clone.style.top = rect.top + 'px';
+        clone.style.width = rect.width + 'px';
+        clone.style.height = rect.height + 'px';
+        clone.style.margin = '0';
+        clone.style.zIndex = 9999;
+        clone.style.pointerEvents = 'none';
+        document.body.appendChild(clone);
+        btn.style.visibility = 'hidden';
+
+        // pulso escuro: criar pseudo-overlay no clone
+        clone.style.boxShadow = '0 0 0 0 rgba(0,0,0,0.6)';
+        const dur = 900;
+        clone.animate([
+            { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(0,0,0,0.0)' },
+            { transform: 'scale(1.35)', boxShadow: '0 0 30px 12px rgba(0,0,0,0.6)' },
+            { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(0,0,0,0.0)' }
+        ], { duration: dur, easing: 'ease-out', fill: 'forwards' });
+
+        setTimeout(() => {
+            clone.remove();
+            btn.style.visibility = '';
+            resolve(dur);
+        }, dur + 20);
+    });
+}
+
+function animateSatisfeitoSimple(btn) {
+    return new Promise(resolve => {
+        const rect = btn.getBoundingClientRect();
+        const clone = btn.cloneNode(true);
+        clone.style.position = 'fixed';
+        clone.style.left = rect.left + 'px';
+        clone.style.top = rect.top + 'px';
+        clone.style.width = rect.width + 'px';
+        clone.style.height = rect.height + 'px';
+        clone.style.margin = '0';
+        clone.style.zIndex = 9999;
+        clone.style.pointerEvents = 'none';
+        document.body.appendChild(clone);
+        btn.style.visibility = 'hidden';
+
+        const dur = 700;
+        clone.animate([
+            { transform: 'scale(1)' },
+            { transform: 'scale(1.25)' },
+            { transform: 'scale(1)' }
+        ], { duration: dur, easing: 'ease-out', fill: 'forwards' });
+
+        setTimeout(() => {
+            clone.remove();
+            btn.style.visibility = '';
+            resolve(dur);
+        }, dur + 20);
+    });
+}
+
+function animateInsatisfeitoSimple(btn) {
+    return new Promise(resolve => {
+        const rect = btn.getBoundingClientRect();
+        // criar apenas lágrimas, sem mover
+        const eyeLeft = rect.left + rect.width * 0.22;
+        const eyeRight = rect.left + rect.width * 0.6;
+        const eyeTop = rect.top + rect.height * 0.25;
+
+        const tear1 = document.createElement('div');
+        const tear2 = document.createElement('div');
+        tear1.className = 'tear';
+        tear2.className = 'tear';
+        document.body.appendChild(tear1);
+        document.body.appendChild(tear2);
+        tear1.style.left = (eyeLeft) + 'px';
+        tear1.style.top = (eyeTop) + 'px';
+        tear2.style.left = (eyeRight) + 'px';
+        tear2.style.top = (eyeTop + 6) + 'px';
+
+        const dur = 1000;
+        const endY1 = Math.max(20, window.innerHeight - (eyeTop) - 10);
+        const endY2 = Math.max(20, window.innerHeight - (eyeTop + 6) - 10);
+
+        tear1.animate([
+            { transform: 'translateY(0px) rotate(0deg)', opacity: 0.95 },
+            { transform: `translateY(${endY1}px) rotate(18deg)`, opacity: 0.2 }
+        ], { duration: dur, easing: 'linear', fill: 'forwards' });
+
+        tear2.animate([
+            { transform: 'translateY(0px) rotate(0deg)', opacity: 0.95 },
+            { transform: `translateY(${endY2}px) rotate(22deg)`, opacity: 0.2 }
+        ], { duration: dur, easing: 'linear', fill: 'forwards' });
+
+        setTimeout(() => {
+            try { tear1.remove(); } catch (e) {}
+            try { tear2.remove(); } catch (e) {}
+            resolve(dur);
+        }, dur + 30);
     });
 }
 
