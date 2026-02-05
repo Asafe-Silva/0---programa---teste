@@ -68,6 +68,61 @@ document.addEventListener('DOMContentLoaded', () => {
     if (down) down.addEventListener('click', () => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }));
 });
 </script>
+<!-- Socket.IO client para atualizações em tempo real -->
+<script src="https://cdn.socket.io/4.6.1/socket.io.min.js" integrity="" crossorigin="anonymous"></script>
+<script>
+    (function(){
+        try {
+            const socket = io();
+
+            socket.on('init', (data) => {
+                // atualizar gráfico
+                if (window.grafico && data) {
+                    grafico.data.datasets[0].data = [data.total_muito || 0, data.total_satisfeito || 0, data.total_insatisfeito || 0];
+                    grafico.update();
+                }
+                // popular tabela com latest
+                if (data.latest && data.latest.length) {
+                    const tbody = document.querySelector('table tbody');
+                    if (tbody) {
+                        tbody.innerHTML = '';
+                        data.latest.forEach(r => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `<td>${r.id}</td><td>${r.grau}</td><td>${r.data}</td><td>${r.hora}</td><td>${r.dia_semana}</td>`;
+                            tbody.appendChild(tr);
+                        });
+                    }
+                }
+            });
+
+            socket.on('stats_update', (s) => {
+                if (window.grafico && s) {
+                    grafico.data.datasets[0].data = [s.total_muito || 0, s.total_satisfeito || 0, s.total_insatisfeito || 0];
+                    grafico.update();
+                }
+                // atualizar percentuais na página (se existirem elementos)
+                try {
+                    const total = (s.total_muito||0) + (s.total_satisfeito||0) + (s.total_insatisfeito||0);
+                    const pEls = document.querySelectorAll('.stats-percent');
+                    // se quiser elementos específicos, você pode criar e atualizar aqui
+                } catch(e){}
+            });
+
+            socket.on('new_feedback', (r) => {
+                try {
+                    const tbody = document.querySelector('table tbody');
+                    if (tbody) {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `<td>${r.id}</td><td>${r.grau}</td><td>${r.data}</td><td>${r.hora}</td><td>${r.dia_semana}</td>`;
+                        // inserir no topo
+                        tbody.insertBefore(tr, tbody.firstChild);
+                    }
+                } catch(e) { console.error(e); }
+            });
+
+        } catch (e) { console.warn('Realtime init failed', e); }
+    })();
+</script>
 {% endblock %}
 {% block top_buttons %}
     <a href="/" id="inicioBtn" class="topbtn">Início</a>

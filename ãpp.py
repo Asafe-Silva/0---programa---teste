@@ -2,8 +2,12 @@ from flask import Flask, render_template, request, jsonify, Response, session, r
 import sqlite3
 from datetime import datetime
 import os
+from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
+
+# SocketIO para tempo real
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 DATABASE = 'database.db'
 
@@ -79,7 +83,27 @@ def registrar():
         (grau, data_str, hora_str, dia_semana)
     )
     conn.commit()
+    # obter dados recém-inseridos (último id)
+    cur = conn.execute('SELECT * FROM feedbacks ORDER BY id DESC LIMIT 1')
+    new_row = cur.fetchone()
+
+    # atualizar contagens e emitir evento para clientes conectados
+    total_muito = conn.execute("SELECT COUNT(*) FROM feedbacks WHERE grau='Muito satisfeito'").fetchone()[0]
+    total_satisfeito = conn.execute("SELECT COUNT(*) FROM feedbacks WHERE grau='Satisfeito'").fetchone()[0]
+    total_insatisfeito = conn.execute("SELECT COUNT(*) FROM feedbacks WHERE grau='Insatisfeito'").fetchone()[0]
+
     conn.close()
+
+    # emitir evento de novo feedback e estatísticas atualizadas
+    try:
+        socketio.emit('new_feedback', dict(new_row), broadcast=True)
+        socketio.emit('stats_update', {
+            'total_muito': total_muito,
+            'total_satisfeito': total_satisfeito,
+            'total_insatisfeito': total_insatisfeito
+        }, broadcast=True)
+    except Exception:
+        pass
 
     return jsonify({'mensagem': 'Obrigado pelo seu feedback!'})
 
@@ -162,5 +186,25 @@ def exportar(formato):
         return "Formato inválido.", 400
 
 
+# enviar estado inicial quando um cliente conectar
+@socketio.on('connect')
+def handle_connect():
+    try:
+        conn = get_db_connection()
+        total_muito = conn.execute("SELECT COUNT(*) FROM feedbacks WHERE grau='Muito satisfeito'").fetchone()[0]
+        total_satisfeito = conn.execute("SELECT COUNT(*) FROM feedbacks WHERE grau='Satisfeito'").fetchone()[0]
+        total_insatisfeito = conn.execute("SELECT COUNT(*) FROM feedbacks WHERE grau='Insatisfeito'").fetchone()[0]
+        latest = conn.execute('SELECT * FROM feedbacks ORDER BY id DESC LIMIT 10').fetchall()
+        conn.close()
+        emit('init', {
+            'total_muito': total_muito,
+            'total_satisfeito': total_satisfeito,
+            'total_insatisfeito': total_insatisfeito,
+            'latest': [dict(r) for r in latest]
+        })
+    except Exception:
+        pass
+
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    socketio.run(app, debug=True)
