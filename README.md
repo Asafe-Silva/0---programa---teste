@@ -33,6 +33,12 @@ python ãpp.py
 
 Por padrão a aplicação roda em `http://127.0.0.1:5000` com `debug=True`.
 
+**Rodar com um arquivo padrão (recomendado para deploy)**
+
+```bash
+python app.py
+```
+
 **Interface pública**
 - A página inicial (`/`) apresenta três botões com opções de satisfação.
 - Quando o usuário clica num botão, o navegador envia uma requisição `POST` para `/registrar` com JSON `{ "grau": "Satisfeito" }`.
@@ -81,8 +87,22 @@ curl -X POST http://127.0.0.1:5000/registrar \
 - Para trocar administradores, edite a lista `admins_pre` em `ãpp.py` ou crie usuários diretamente no banco.
 - Para desativar `debug` edite o bloco `if __name__ == '__main__':` e passe `debug=False`.
 
+**Deploy gratuito (abrir só a URL)**
+1. Suba o projeto para o GitHub.
+2. Crie uma conta no Render (plano free).
+3. Crie um **Web Service** apontando para o repositório.
+4. Configure:
+	- **Build Command**: `pip install -r requirements.txt`
+	- **Start Command**: `python app.py`
+	- **Environment Variables**: `FLASK_SECRET_KEY` e `DATABASE_URL` (se usar Postgres online).
+5. Aguarde o deploy e abra a URL gerada.
+
+**Banco gratuito online (PostgreSQL)**
+- Você pode usar Supabase e copiar a URL do banco em `DATABASE_URL`.
+
 **Arquivos importantes**
 - [ãpp.py](ãpp.py) — backend principal (Flask + SQLite/PostgreSQL)
+- [app.py](app.py) — entrada padrão para deploy
 - [requirements.txt](requirements.txt) — dependências
 - [templates/index.html](templates/index.html) — interface pública
 - [templates/admin.html](templates/admin.html) — área administrativa
