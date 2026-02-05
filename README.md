@@ -1,9 +1,9 @@
 
 # Sistema de Feedback (Satisfação)
 
-Este projeto é uma pequena aplicação web para coletar feedback de satisfação dos usuários e visualizar estatísticas em uma área administrativa.
+Este projeto é uma pequena aplicação web para coletar feedback de satisfação dos usuários e visualizar estatísticas em uma área administrativa com atualizações em tempo real.
 
-**O que o programa faz**: - Coleta avaliações de usuários ("Muito satisfeito", "Satisfeito", "Insatisfeito") através da interface pública; - Armazena registros em um banco SQLite (`database.db`); - Exibe estatísticas e histórico na área administrativa protegida por senha simples; - Permite exportar os dados em `CSV` ou `TXT`.
+**O que o programa faz**: - Coleta avaliações de usuários ("Muito satisfeito", "Satisfeito", "Insatisfeito") através da interface pública; - Armazena registros em um banco SQLite (`database.db`) ou em um banco online via `DATABASE_URL` (PostgreSQL); - Exibe estatísticas, insights e histórico em uma área administrativa protegida por sessão; - Permite exportar os dados em `CSV`, `TXT` ou `JSON`.
 
 **Requisitos**
 - **Python 3.8+** (recomendado)
@@ -47,39 +47,42 @@ curl -X POST http://127.0.0.1:5000/registrar \
 ```
 
 **Área administrativa**
-- URL: `/admin_001`
-- Acesso simples por query param: `?senha=1234`
+- URL: `/admin`
+- Acesso via modal de login na página inicial (usuários predefinidos no banco).
 - Exibe:
-	- Contagem de cada nível de satisfação
+	- Contagem de cada nível de satisfação e percentuais
 	- Gráfico de barras (Chart.js)
+	- Insights rápidos (dia mais ativo e último feedback)
 	- Tabela com histórico (id, grau, data, hora, dia da semana)
-	- Links para exportar: `/exportar/csv` e `/exportar/txt`
-
-Segurança: atualmente a senha administrativa está definida em código em `ãpp.py` como `ADMIN_PASSWORD = '1234'`. Troque por uma senha mais forte ou implemente autenticação adequada antes de usar em produção.
+	- Links para exportar: `/exportar/csv`, `/exportar/txt` e `/exportar/json`
 
 **Rotas principais**
 - `GET /` — página pública de coleta de feedback.
 - `POST /registrar` — registra um feedback (JSON: `{ "grau": "..." }`).
-- `GET /admin_001?senha=...` — painel administrativo (restrito por senha simples).
+- `POST /login` — autenticação administrativa.
+- `GET /admin` — painel administrativo (restrito por sessão).
 - `GET /exportar/csv` — baixa todos os registros em CSV.
 - `GET /exportar/txt` — baixa todos os registros em TXT.
+- `GET /exportar/json` — baixa todos os registros em JSON.
+- `GET /api/feedbacks` — lista registros em JSON para análises externas.
+- `GET /api/stats` — resumo estatístico em JSON.
 
 **Banco de dados**
-- Arquivo: `database.db` (SQLite) na raiz do projeto.
+- Local: `database.db` (SQLite) na raiz do projeto.
+- Online: configure `DATABASE_URL` com uma URL PostgreSQL (ex.: `postgresql://usuario:senha@host:5432/db`).
 - Tabela: `feedbacks` com colunas:
 	- `id` INTEGER PRIMARY KEY AUTOINCREMENT
 	- `grau` TEXT
-	- `data` TEXT (YYYY-MM-DD)
+	- `data` TEXT (DD/MM/AAAA)
 	- `hora` TEXT (HH:MM:SS)
 	- `dia_semana` TEXT
 
 **Personalização rápida**
-- Para mudar a URL administrativa altere a constante `ADMIN_URL` em `ãpp.py`.
-- Para trocar a senha altere `ADMIN_PASSWORD` em `ãpp.py`.
+- Para trocar administradores, edite a lista `admins_pre` em `ãpp.py` ou crie usuários diretamente no banco.
 - Para desativar `debug` edite o bloco `if __name__ == '__main__':` e passe `debug=False`.
 
 **Arquivos importantes**
-- [ãpp.py](ãpp.py) — backend principal (Flask + SQLite)
+- [ãpp.py](ãpp.py) — backend principal (Flask + SQLite/PostgreSQL)
 - [requirements.txt](requirements.txt) — dependências
 - [templates/index.html](templates/index.html) — interface pública
 - [templates/admin.html](templates/admin.html) — área administrativa
@@ -88,8 +91,7 @@ Segurança: atualmente a senha administrativa está definida em código em `ãpp
 - [static/css/style.css](static/css/style.css) — estilos
 
 **Próximos passos recomendados**
-- Substituir a autenticação administrativa por um sistema baseado em sessões ou variáveis de ambiente.
-- Mover a senha para variável de ambiente (ex.: `ADMIN_PASSWORD=os.getenv('ADMIN_PASSWORD')`).
+- Guardar senhas com hash (bcrypt/argon2) e permitir reset seguro.
 - Proteger endpoints com HTTPS em produção.
 
 ---
