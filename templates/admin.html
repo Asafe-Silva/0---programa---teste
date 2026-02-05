@@ -158,6 +158,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 setText('percentMuito', `${percent(s.total_muito || 0)}%`);
                 setText('percentSatisfeito', `${percent(s.total_satisfeito || 0)}%`);
                 setText('percentInsatisfeito', `${percent(s.total_insatisfeito || 0)}%`);
+                if (s.dia_top) {
+                    setText('diaTop', s.dia_top);
+                }
             }
 
             socket.on('stats_update', (s) => {

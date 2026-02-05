@@ -70,6 +70,18 @@ def row_to_dict(row):
         return row
     return dict(row)
 
+
+def get_dia_top(conn):
+    row = execute_query(
+        conn,
+        "SELECT dia_semana, COUNT(*) AS total FROM feedbacks GROUP BY dia_semana ORDER BY total DESC LIMIT 1",
+        fetchone=True
+    )
+    if not row:
+        return 'Sem dados'
+    row = row_to_dict(row)
+    return row.get('dia_semana', 'Sem dados')
+
 def criar_tabela():
     conn = get_db_connection()
     if is_postgres():
@@ -178,6 +190,7 @@ def registrar():
         "SELECT COUNT(*) AS total FROM feedbacks WHERE grau='Insatisfeito'",
         fetchone=True
     )['total']
+    dia_top = get_dia_top(conn)
 
     conn.close()
 
@@ -187,7 +200,8 @@ def registrar():
         socketio.emit('stats_update', {
             'total_muito': total_muito,
             'total_satisfeito': total_satisfeito,
-            'total_insatisfeito': total_insatisfeito
+            'total_insatisfeito': total_insatisfeito,
+            'dia_top': dia_top
         }, broadcast=True)
     except Exception:
         pass
@@ -203,7 +217,7 @@ def admin():
         return redirect(url_for('index'))
 
     conn = get_db_connection()
-    registros = execute_query(conn, 'SELECT * FROM feedbacks ORDER BY data DESC, hora DESC', fetchall=True)
+    registros = execute_query(conn, 'SELECT * FROM feedbacks ORDER BY id DESC', fetchall=True)
 
     # contagem por grau
     total_muito = execute_query(
@@ -227,11 +241,8 @@ def admin():
     percent_insatisfeito = round((total_insatisfeito / total) * 100, 2) if total else 0
 
     historico = [row_to_dict(r) for r in registros]
-    dias_contagem = {}
     ultimo_registro = historico[0] if historico else None
-    for reg in historico:
-        dias_contagem[reg['dia_semana']] = dias_contagem.get(reg['dia_semana'], 0) + 1
-    dia_top = max(dias_contagem, key=dias_contagem.get) if dias_contagem else 'Sem dados'
+    dia_top = get_dia_top(conn)
     ultimo_feedback = (
         f"{ultimo_registro['data']} {ultimo_registro['hora']}" if ultimo_registro else 'Sem registros'
     )
@@ -387,11 +398,13 @@ def handle_connect():
             fetchone=True
         )['total']
         latest = execute_query(conn, 'SELECT * FROM feedbacks ORDER BY id DESC LIMIT 10', fetchall=True)
+        dia_top = get_dia_top(conn)
         conn.close()
         emit('init', {
             'total_muito': total_muito,
             'total_satisfeito': total_satisfeito,
             'total_insatisfeito': total_insatisfeito,
+            'dia_top': dia_top,
             'latest': [row_to_dict(r) for r in latest]
         })
     except Exception:
