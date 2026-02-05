@@ -4,41 +4,121 @@ from datetime import datetime
 import os
 from flask_socketio import SocketIO, emit
 
+try:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+except ImportError:  # fallback local
+    psycopg2 = None
+    RealDictCursor = None
+
 app = Flask(__name__)
 
 # SocketIO para tempo real
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 DATABASE = 'database.db'
+DATABASE_URL = os.getenv('DATABASE_URL', '').strip()
+
+
+def is_postgres():
+    return DATABASE_URL.startswith('postgres://') or DATABASE_URL.startswith('postgresql://')
 
 # secret key para sessões (em produção usar var de ambiente)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'troque_esta_chave_para_producao')
 
 # --- Função para criar/conectar banco ---
 def get_db_connection():
+    if is_postgres():
+        if psycopg2 is None:
+            raise RuntimeError('psycopg2 não está instalado. Instale psycopg2-binary.')
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        return conn
     conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
     return conn
 
+
+def prepare_query(query):
+    if is_postgres():
+        return query.replace('?', '%s')
+    return query
+
+
+def execute_query(conn, query, params=None, fetchone=False, fetchall=False):
+    query = prepare_query(query)
+    params = params or ()
+    if is_postgres():
+        with conn.cursor() as cur:
+            cur.execute(query, params)
+            if fetchone:
+                return cur.fetchone()
+            if fetchall:
+                return cur.fetchall()
+            return None
+    cur = conn.execute(query, params)
+    if fetchone:
+        return cur.fetchone()
+    if fetchall:
+        return cur.fetchall()
+    return None
+
+
+def row_to_dict(row):
+    if row is None:
+        return None
+    if isinstance(row, dict):
+        return row
+    return dict(row)
+
+
+def get_dia_top(conn):
+    row = execute_query(
+        conn,
+        "SELECT dia_semana, COUNT(*) AS total FROM feedbacks GROUP BY dia_semana ORDER BY total DESC LIMIT 1",
+        fetchone=True
+    )
+    if not row:
+        return 'Sem dados'
+    row = row_to_dict(row)
+    return row.get('dia_semana', 'Sem dados')
+
 def criar_tabela():
     conn = get_db_connection()
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS feedbacks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            grau TEXT NOT NULL,
-            data TEXT NOT NULL,
-            hora TEXT NOT NULL,
-            dia_semana TEXT NOT NULL
-        )
-    ''')
-    # tabela de administradores
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS admins (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            senha TEXT NOT NULL
-        )
-    ''')
+    if is_postgres():
+        execute_query(conn, '''
+            CREATE TABLE IF NOT EXISTS feedbacks (
+                id SERIAL PRIMARY KEY,
+                grau TEXT NOT NULL,
+                data TEXT NOT NULL,
+                hora TEXT NOT NULL,
+                dia_semana TEXT NOT NULL
+            )
+        ''')
+        execute_query(conn, '''
+            CREATE TABLE IF NOT EXISTS admins (
+                id SERIAL PRIMARY KEY,
+                username TEXT UNIQUE NOT NULL,
+                senha TEXT NOT NULL
+            )
+        ''')
+    else:
+        execute_query(conn, '''
+            CREATE TABLE IF NOT EXISTS feedbacks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                grau TEXT NOT NULL,
+                data TEXT NOT NULL,
+                hora TEXT NOT NULL,
+                dia_semana TEXT NOT NULL
+            )
+        ''')
+        # tabela de administradores
+        execute_query(conn, '''
+            CREATE TABLE IF NOT EXISTS admins (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                senha TEXT NOT NULL
+            )
+        ''')
     # inserir administradores predefinidos (se não existirem)
     admins_pre = [
         ('admin_001', '1234'),
@@ -50,7 +130,14 @@ def criar_tabela():
     ]
     for u, p in admins_pre:
         try:
-            conn.execute('INSERT OR IGNORE INTO admins (username, senha) VALUES (?, ?)', (u, p))
+            if is_postgres():
+                execute_query(
+                    conn,
+                    'INSERT INTO admins (username, senha) VALUES (?, ?) ON CONFLICT (username) DO NOTHING',
+                    (u, p)
+                )
+            else:
+                execute_query(conn, 'INSERT OR IGNORE INTO admins (username, senha) VALUES (?, ?)', (u, p))
         except Exception:
             pass
     conn.commit()
@@ -78,29 +165,43 @@ def registrar():
     dia_semana = dias_pt[agora.weekday()]
 
     conn = get_db_connection()
-    conn.execute(
+    execute_query(
+        conn,
         'INSERT INTO feedbacks (grau, data, hora, dia_semana) VALUES (?, ?, ?, ?)',
         (grau, data_str, hora_str, dia_semana)
     )
     conn.commit()
     # obter dados recém-inseridos (último id)
-    cur = conn.execute('SELECT * FROM feedbacks ORDER BY id DESC LIMIT 1')
-    new_row = cur.fetchone()
+    new_row = execute_query(conn, 'SELECT * FROM feedbacks ORDER BY id DESC LIMIT 1', fetchone=True)
 
     # atualizar contagens e emitir evento para clientes conectados
-    total_muito = conn.execute("SELECT COUNT(*) FROM feedbacks WHERE grau='Muito satisfeito'").fetchone()[0]
-    total_satisfeito = conn.execute("SELECT COUNT(*) FROM feedbacks WHERE grau='Satisfeito'").fetchone()[0]
-    total_insatisfeito = conn.execute("SELECT COUNT(*) FROM feedbacks WHERE grau='Insatisfeito'").fetchone()[0]
+    total_muito = execute_query(
+        conn,
+        "SELECT COUNT(*) AS total FROM feedbacks WHERE grau='Muito satisfeito'",
+        fetchone=True
+    )['total']
+    total_satisfeito = execute_query(
+        conn,
+        "SELECT COUNT(*) AS total FROM feedbacks WHERE grau='Satisfeito'",
+        fetchone=True
+    )['total']
+    total_insatisfeito = execute_query(
+        conn,
+        "SELECT COUNT(*) AS total FROM feedbacks WHERE grau='Insatisfeito'",
+        fetchone=True
+    )['total']
+    dia_top = get_dia_top(conn)
 
     conn.close()
 
     # emitir evento de novo feedback e estatísticas atualizadas
     try:
-        socketio.emit('new_feedback', dict(new_row), broadcast=True)
+        socketio.emit('new_feedback', row_to_dict(new_row), broadcast=True)
         socketio.emit('stats_update', {
             'total_muito': total_muito,
             'total_satisfeito': total_satisfeito,
-            'total_insatisfeito': total_insatisfeito
+            'total_insatisfeito': total_insatisfeito,
+            'dia_top': dia_top
         }, broadcast=True)
     except Exception:
         pass
@@ -116,13 +217,35 @@ def admin():
         return redirect(url_for('index'))
 
     conn = get_db_connection()
-    registros = conn.execute('SELECT * FROM feedbacks ORDER BY data DESC, hora DESC').fetchall()
+    registros = execute_query(conn, 'SELECT * FROM feedbacks ORDER BY id DESC', fetchall=True)
 
     # contagem por grau
-    total_muito = conn.execute("SELECT COUNT(*) FROM feedbacks WHERE grau='Muito satisfeito'").fetchone()[0]
-    total_satisfeito = conn.execute("SELECT COUNT(*) FROM feedbacks WHERE grau='Satisfeito'").fetchone()[0]
-    total_insatisfeito = conn.execute("SELECT COUNT(*) FROM feedbacks WHERE grau='Insatisfeito'").fetchone()[0]
+    total_muito = execute_query(
+        conn,
+        "SELECT COUNT(*) AS total FROM feedbacks WHERE grau='Muito satisfeito'",
+        fetchone=True
+    )['total']
+    total_satisfeito = execute_query(
+        conn,
+        "SELECT COUNT(*) AS total FROM feedbacks WHERE grau='Satisfeito'",
+        fetchone=True
+    )['total']
+    total_insatisfeito = execute_query(
+        conn,
+        "SELECT COUNT(*) AS total FROM feedbacks WHERE grau='Insatisfeito'",
+        fetchone=True
+    )['total']
     total = total_muito + total_satisfeito + total_insatisfeito
+    percent_muito = round((total_muito / total) * 100, 2) if total else 0
+    percent_satisfeito = round((total_satisfeito / total) * 100, 2) if total else 0
+    percent_insatisfeito = round((total_insatisfeito / total) * 100, 2) if total else 0
+
+    historico = [row_to_dict(r) for r in registros]
+    ultimo_registro = historico[0] if historico else None
+    dia_top = get_dia_top(conn)
+    ultimo_feedback = (
+        f"{ultimo_registro['data']} {ultimo_registro['hora']}" if ultimo_registro else 'Sem registros'
+    )
 
     conn.close()
 
@@ -131,6 +254,11 @@ def admin():
                            total_satisfeito=total_satisfeito,
                            total_insatisfeito=total_insatisfeito,
                            total=total,
+                           percent_muito=percent_muito,
+                           percent_satisfeito=percent_satisfeito,
+                           percent_insatisfeito=percent_insatisfeito,
+                           dia_top=dia_top,
+                           ultimo_feedback=ultimo_feedback,
                            admin_user=session.get('admin_user'))
 
 
@@ -144,7 +272,12 @@ def login():
         return jsonify({'success': False, 'mensagem': 'Usuário ou senha ausente.'}), 400
 
     conn = get_db_connection()
-    row = conn.execute('SELECT * FROM admins WHERE username = ? AND senha = ?', (username, senha)).fetchone()
+    row = execute_query(
+        conn,
+        'SELECT * FROM admins WHERE username = ? AND senha = ?',
+        (username, senha),
+        fetchone=True
+    )
     conn.close()
 
     if row:
@@ -164,7 +297,7 @@ def logout():
 @app.route('/exportar/<formato>')
 def exportar(formato):
     conn = get_db_connection()
-    dados = conn.execute('SELECT * FROM feedbacks').fetchall()
+    dados = execute_query(conn, 'SELECT * FROM feedbacks', fetchall=True)
     conn.close()
 
     if formato == 'csv':
@@ -174,16 +307,74 @@ def exportar(formato):
         writer = csv.writer(sio)
         writer.writerow(['id', 'grau', 'data', 'hora', 'dia_semana'])
         for row in dados:
+            row = row_to_dict(row)
             writer.writerow([row['id'], row['grau'], row['data'], row['hora'], row['dia_semana']])
         output = sio.getvalue()
         return Response(output, mimetype="text/csv",
                         headers={"Content-Disposition": "attachment;filename=feedbacks.csv"})
+    elif formato == 'json':
+        return Response(
+            jsonify([row_to_dict(r) for r in dados]).get_data(as_text=True),
+            mimetype='application/json',
+            headers={"Content-Disposition": "attachment;filename=feedbacks.json"}
+        )
     elif formato == 'txt':
-        output = "\n".join([f"{row['id']} | {row['grau']} | {row['data']} {row['hora']} | {row['dia_semana']}" for row in dados])
+        linhas = []
+        for row in dados:
+            row = row_to_dict(row)
+            linhas.append(
+                f"{row['id']} | {row['grau']} | {row['data']} {row['hora']} | {row['dia_semana']}"
+            )
+        output = "\n".join(linhas)
         return Response(output, mimetype="text/plain",
                         headers={"Content-Disposition": "attachment;filename=feedbacks.txt"})
     else:
         return "Formato inválido.", 400
+
+
+@app.route('/api/feedbacks')
+def api_feedbacks():
+    conn = get_db_connection()
+    dados = execute_query(conn, 'SELECT * FROM feedbacks ORDER BY id DESC', fetchall=True)
+    conn.close()
+    return jsonify([row_to_dict(r) for r in dados])
+
+
+@app.route('/api/stats')
+def api_stats():
+    conn = get_db_connection()
+    total_muito = execute_query(
+        conn,
+        "SELECT COUNT(*) AS total FROM feedbacks WHERE grau='Muito satisfeito'",
+        fetchone=True
+    )['total']
+    total_satisfeito = execute_query(
+        conn,
+        "SELECT COUNT(*) AS total FROM feedbacks WHERE grau='Satisfeito'",
+        fetchone=True
+    )['total']
+    total_insatisfeito = execute_query(
+        conn,
+        "SELECT COUNT(*) AS total FROM feedbacks WHERE grau='Insatisfeito'",
+        fetchone=True
+    )['total']
+    registros = execute_query(conn, 'SELECT data, dia_semana FROM feedbacks', fetchall=True)
+    conn.close()
+
+    total = total_muito + total_satisfeito + total_insatisfeito
+    dias_contagem = {}
+    for reg in registros:
+        reg = row_to_dict(reg)
+        dias_contagem[reg['dia_semana']] = dias_contagem.get(reg['dia_semana'], 0) + 1
+    dia_top = max(dias_contagem, key=dias_contagem.get) if dias_contagem else 'Sem dados'
+
+    return jsonify({
+        'total': total,
+        'total_muito': total_muito,
+        'total_satisfeito': total_satisfeito,
+        'total_insatisfeito': total_insatisfeito,
+        'dia_top': dia_top
+    })
 
 
 # enviar estado inicial quando um cliente conectar
@@ -191,16 +382,30 @@ def exportar(formato):
 def handle_connect():
     try:
         conn = get_db_connection()
-        total_muito = conn.execute("SELECT COUNT(*) FROM feedbacks WHERE grau='Muito satisfeito'").fetchone()[0]
-        total_satisfeito = conn.execute("SELECT COUNT(*) FROM feedbacks WHERE grau='Satisfeito'").fetchone()[0]
-        total_insatisfeito = conn.execute("SELECT COUNT(*) FROM feedbacks WHERE grau='Insatisfeito'").fetchone()[0]
-        latest = conn.execute('SELECT * FROM feedbacks ORDER BY id DESC LIMIT 10').fetchall()
+        total_muito = execute_query(
+            conn,
+            "SELECT COUNT(*) AS total FROM feedbacks WHERE grau='Muito satisfeito'",
+            fetchone=True
+        )['total']
+        total_satisfeito = execute_query(
+            conn,
+            "SELECT COUNT(*) AS total FROM feedbacks WHERE grau='Satisfeito'",
+            fetchone=True
+        )['total']
+        total_insatisfeito = execute_query(
+            conn,
+            "SELECT COUNT(*) AS total FROM feedbacks WHERE grau='Insatisfeito'",
+            fetchone=True
+        )['total']
+        latest = execute_query(conn, 'SELECT * FROM feedbacks ORDER BY id DESC LIMIT 10', fetchall=True)
+        dia_top = get_dia_top(conn)
         conn.close()
         emit('init', {
             'total_muito': total_muito,
             'total_satisfeito': total_satisfeito,
             'total_insatisfeito': total_insatisfeito,
-            'latest': [dict(r) for r in latest]
+            'dia_top': dia_top,
+            'latest': [row_to_dict(r) for r in latest]
         })
     except Exception:
         pass

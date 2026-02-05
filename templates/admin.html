@@ -1,21 +1,69 @@
 {% extends "layout.html" %}
 {% block content %}
-<div class="container">
-    <h1>Administração - Feedbacks</h1>
-
-    <h2>Estatísticas</h2>
-    <p>Muito satisfeito: {{ total_muito }} ({{ (total_muito/total*100)|round(2) }}%)</p>
-    <p>Satisfeito: {{ total_satisfeito }} ({{ (total_satisfeito/total*100)|round(2) }}%)</p>
-    <p>Insatisfeito: {{ total_insatisfeito }} ({{ (total_insatisfeito/total*100)|round(2) }}%)</p>
-
-    <canvas id="grafico" width="400" height="200"></canvas>
-
-    <div class="admin-actions">
-        <a href="/logout">Logout</a>
+<div class="container admin">
+    <div class="page-header">
+        <div>
+            <h1>Administração - Feedbacks</h1>
+            <p class="subtitle">Monitoramento em tempo real e insights rápidos para decisões melhores.</p>
+        </div>
+        <div class="admin-actions">
+            <a href="/logout" class="btn-outline">Logout</a>
+        </div>
     </div>
 
-    <h2>Histórico</h2>
-    <table>
+    <section class="stats-grid">
+        <div class="stat-card">
+            <h3>Muito satisfeito</h3>
+            <p class="stat-value" id="totalMuito">{{ total_muito }}</p>
+            <p class="stat-sub" id="percentMuito">{{ percent_muito }}%</p>
+        </div>
+        <div class="stat-card">
+            <h3>Satisfeito</h3>
+            <p class="stat-value" id="totalSatisfeito">{{ total_satisfeito }}</p>
+            <p class="stat-sub" id="percentSatisfeito">{{ percent_satisfeito }}%</p>
+        </div>
+        <div class="stat-card">
+            <h3>Insatisfeito</h3>
+            <p class="stat-value" id="totalInsatisfeito">{{ total_insatisfeito }}</p>
+            <p class="stat-sub" id="percentInsatisfeito">{{ percent_insatisfeito }}%</p>
+        </div>
+        <div class="stat-card highlight">
+            <h3>Total</h3>
+            <p class="stat-value" id="totalGeral">{{ total }}</p>
+            <p class="stat-sub">Feedbacks</p>
+        </div>
+    </section>
+
+    <section class="insights-grid">
+        <div class="insight-card">
+            <h3>Dia mais ativo</h3>
+            <p id="diaTop">{{ dia_top }}</p>
+        </div>
+        <div class="insight-card">
+            <h3>Último feedback</h3>
+            <p id="ultimoFeedback">{{ ultimo_feedback }}</p>
+        </div>
+        <div class="insight-card">
+            <h3>Exportações rápidas</h3>
+            <div class="export-links">
+                <a href="/exportar/csv" class="btn-pill">CSV</a>
+                <a href="/exportar/txt" class="btn-pill">TXT</a>
+                <a href="/exportar/json" class="btn-pill">JSON</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="chart-card">
+        <h2>Distribuição de feedbacks</h2>
+        <canvas id="grafico" width="400" height="200"></canvas>
+    </section>
+
+    <section class="table-card">
+        <div class="table-header">
+            <h2>Histórico</h2>
+            <p>Atualizado automaticamente a cada novo feedback recebido.</p>
+        </div>
+        <table>
         <thead>
             <tr>
                 <th>ID</th><th>Grau</th><th>Data</th><th>Hora</th><th>Dia da Semana</th>
@@ -32,10 +80,8 @@
             </tr>
             {% endfor %}
         </tbody>
-    </table>
-
-    <a href="/exportar/csv">Exportar CSV</a> |
-    <a href="/exportar/txt">Exportar TXT</a>
+        </table>
+    </section>
 </div>
 
 <!-- botões flutuantes no canto inferior direito (admin) -->
@@ -81,6 +127,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     grafico.data.datasets[0].data = [data.total_muito || 0, data.total_satisfeito || 0, data.total_insatisfeito || 0];
                     grafico.update();
                 }
+                if (data) {
+                    atualizarResumo(data);
+                }
                 // popular tabela com latest
                 if (data.latest && data.latest.length) {
                     const tbody = document.querySelector('table tbody');
@@ -95,17 +144,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
+            function atualizarResumo(s) {
+                const total = (s.total_muito || 0) + (s.total_satisfeito || 0) + (s.total_insatisfeito || 0);
+                const percent = (value) => total ? ((value / total) * 100).toFixed(2) : '0.00';
+                const setText = (id, val) => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = val;
+                };
+                setText('totalMuito', s.total_muito || 0);
+                setText('totalSatisfeito', s.total_satisfeito || 0);
+                setText('totalInsatisfeito', s.total_insatisfeito || 0);
+                setText('totalGeral', total);
+                setText('percentMuito', `${percent(s.total_muito || 0)}%`);
+                setText('percentSatisfeito', `${percent(s.total_satisfeito || 0)}%`);
+                setText('percentInsatisfeito', `${percent(s.total_insatisfeito || 0)}%`);
+                if (s.dia_top) {
+                    setText('diaTop', s.dia_top);
+                }
+            }
+
             socket.on('stats_update', (s) => {
                 if (window.grafico && s) {
                     grafico.data.datasets[0].data = [s.total_muito || 0, s.total_satisfeito || 0, s.total_insatisfeito || 0];
                     grafico.update();
                 }
-                // atualizar percentuais na página (se existirem elementos)
-                try {
-                    const total = (s.total_muito||0) + (s.total_satisfeito||0) + (s.total_insatisfeito||0);
-                    const pEls = document.querySelectorAll('.stats-percent');
-                    // se quiser elementos específicos, você pode criar e atualizar aqui
-                } catch(e){}
+                if (s) {
+                    atualizarResumo(s);
+                }
             });
 
             socket.on('new_feedback', (r) => {
@@ -116,6 +181,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         tr.innerHTML = `<td>${r.id}</td><td>${r.grau}</td><td>${r.data}</td><td>${r.hora}</td><td>${r.dia_semana}</td>`;
                         // inserir no topo
                         tbody.insertBefore(tr, tbody.firstChild);
+                    }
+                    const ultimo = document.getElementById('ultimoFeedback');
+                    if (ultimo) {
+                        ultimo.textContent = `${r.data} ${r.hora}`;
                     }
                 } catch(e) { console.error(e); }
             });
